@@ -16,31 +16,34 @@ object LoadBalancer {
   type Nodes = List[Node]
   case class BalancedNode[A](node:Node,bins:Bins[A])
   type BalancedNodes[A] = List[BalancedNode[A]]
-  object BinOrdering extends Ordering[Bin[Int]]{
-    override def compare(x: Bin[Int], y: Bin[Int]): Int = x.value.compare(y.value)
-  }
-  object BalancedNodeOrdering extends  Ordering[BalancedNode[Int]] {
-    override def compare(x: BalancedNode[Int], y: BalancedNode[Int]): Int = x.bins.length.compare(y.bins.length)
+
+  object BinOrdering extends Ordering[Bin[Float]]{
+    override def compare(x: Bin[Float], y: Bin[Float]): Int = x.value.compare(y.value)
   }
 
-  implicit val balancedNodeOrder: Order[BalancedNode[Int]] =
-    (x: BalancedNode[Int], y: BalancedNode[Int]) => x.bins.length.compare(y.bins.length)
-  implicit val balancedNodeMonoid:Monoid[BalancedNode[Int]] = new Monoid[BalancedNode[Int]] {
-    override def empty: BalancedNode[Int] = BalancedNode(Node(-1,0,""),List.empty)
+  object BalancedNodeOrdering extends  Ordering[BalancedNode[Float]] {
+    override def compare(x: BalancedNode[Float], y: BalancedNode[Float]) =
+    x.bins.length.compare(y.bins.length)
+  }
 
-    override def combine(x: BalancedNode[Int], y: BalancedNode[Int]): BalancedNode[Int] =
+  implicit val balancedNodeOrder: Order[BalancedNode[Float]] =
+    (x: BalancedNode[Float], y: BalancedNode[Float]) => x.bins.length.compare(y.bins.length)
+  implicit val balancedNodeMonoid:Monoid[BalancedNode[Float]] = new Monoid[BalancedNode[Float]] {
+    override def empty: BalancedNode[Float] = BalancedNode(Node(-1,0,""),List.empty)
+
+    override def combine(x: BalancedNode[Float], y: BalancedNode[Float]): BalancedNode[Float] =
       BalancedNode(x.node,x.bins.concat(y.bins).sorted(BinOrdering))
   }
 
   private val algorithms = Map(0->roundRobin _ ,1->random _,2->twoChoices _)
-  private def addToNode(value:(Int,Bin[Int]),xxs:BalancedNodes[Int]) = value match {
+  private def addToNode(value:(Int,Bin[Float]),xxs:BalancedNodes[Float]) = value match {
     case (nodeIndex,x)=>
       val node    = xxs(nodeIndex)
       val bins    = node.bins
       val newNode = node.copy(bins=bins.appended(x).sorted(BinOrdering))
       xxs.updated(nodeIndex,newNode)
   }
-  def roundRobin(data:Chain[Int], nodes:BalancedNodes[Int]):BalancedNodes[Int]={
+  def roundRobin(data:Chain[Float], nodes:BalancedNodes[Float]):BalancedNodes[Float]={
     val nodesLen = nodes.length
     data.zipWithIndex.collect{
       case (value, index) =>
@@ -48,7 +51,7 @@ object LoadBalancer {
         (node,Bin(value))
     }.foldRight(nodes)(addToNode)
   }
-  def random(data:Chain[Int],workers:BalancedNodes[Int]):BalancedNodes[Int] ={
+  def random(data:Chain[Float],workers:BalancedNodes[Float]):BalancedNodes[Float] ={
     val rand = new Random()
     val nodesLen = workers.length
     data.map{ value=>
@@ -57,14 +60,15 @@ object LoadBalancer {
     }.foldRight(workers)(addToNode)
 //    List.empty
   }
-  def twoChoices(data:Chain[Int],workers:BalancedNodes[Int]):BalancedNodes[Int]={
+  def twoChoices(data:Chain[Float],workers:BalancedNodes[Float]):BalancedNodes[Float]={
     val rand = new Random()
     val nodesLen = workers.length
-    val getWinnerNode= (xs:BalancedNodes[Int],x:Int,y:Int)=>{
+    val getWinnerNode= (xs:BalancedNodes[Float],x:Int,y:Int)=>{
       val node1 = xs(x)
       val node2 = xs(y)
-      Order[BalancedNode[Int]].min(node1,node2)
+      Order[BalancedNode[Float]].min(node1,node2)
     }
+
     val res = data.toList.scanLeft(workers) { (xs, binValue) =>
       val nodeIndexes = (xs,rand.nextInt(nodesLen), rand.nextInt(nodesLen))
       val node = getWinnerNode.tupled(nodeIndexes)
@@ -76,10 +80,10 @@ object LoadBalancer {
     }.last
     res
   }
-  def run(td:TraceData): Option[BalancedNodes[Int]] = {
+  def run(td:TraceData): Option[BalancedNodes[Float]] = {
     val nodes = (0 until td.workers).map(index=>Node(index,td.basePort+index,"localhost"))
       .toList
-      .map(BalancedNode(_, List.empty[Bin[Int]]))
+      .map(BalancedNode(_, List.empty[Bin[Float]]))
      algorithms.get(td.loadBalancer).map(_(td.data,nodes))
   }
 }

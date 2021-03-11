@@ -27,8 +27,8 @@ object LoadBalancerMain extends  IOApp{
   implicit val nodeEncoder:Encoder[Node] = Encoder.forProduct2("port","url"){node=>
     (node.port,node.url)
   }
-  implicit val binEncoder:Encoder[Bin[Int]] =Encoder.forProduct1("value"){x=>(x.value)}
-  implicit val balancedNodeEncoder:Encoder[BalancedNode[Int]] = Encoder.forProduct2("node","bins"){
+  implicit val binEncoder:Encoder[Bin[Float]] =Encoder.forProduct1("value"){x=>(x.value)}
+  implicit val balancedNodeEncoder:Encoder[BalancedNode[Float]] = Encoder.forProduct2("node","bins"){
     x=>(x.node,x.bins)
   }
 
@@ -45,7 +45,7 @@ object LoadBalancerMain extends  IOApp{
         .fmap(decode[TraceData])
         .fmap {
           case Left(_) =>
-            TraceData(Chain.empty[Int],Monoid[Int].empty,Monoid[Int].empty,Monoid[Int].empty)
+            TraceData(Chain.empty[Float],Monoid[Int].empty,Monoid[Int].empty,Monoid[Int].empty)
           case Right(value) =>
             value
         }
@@ -53,9 +53,10 @@ object LoadBalancerMain extends  IOApp{
 
         .fmap(LoadBalancer.run)
         .fmap(x=>x.get)
+//        .fmap(x=>x.map(y=>y.copy(bins = y.bins.map(_.value))))
         .fmap(x=>x.asJson)
         .fmap(x=>x.noSpaces)
-        .debug()
+        .debug(x=>x)
         .through(text.utf8Encode)
         .through(client.writes)
     }

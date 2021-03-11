@@ -12,7 +12,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class LoadBalancerSpec extends AnyFunSuite{
- val data: Chain[Int] =Chain.fromSeq(0 until 5)
+ val data: Chain[Float] = Chain.fromSeq((0 until 5).map(_.toFloat) )
   test("Round robin"){
     val td = TraceData(data,workers = 2,loadBalancer = 0,basePort = 6000)
     val res = LoadBalancer.run(td).get
